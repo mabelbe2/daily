@@ -1,5 +1,6 @@
 package app;
 
+import common.CommonMediator;
 import io.cucumber.junit.CucumberOptions;
 import io.cucumber.junit.Cucumber;
 import org.junit.AfterClass;
@@ -16,7 +17,7 @@ import org.junit.Test;
 @RunWith(Cucumber.class)
 @CucumberOptions(
         features = {"src/test/features"},
-        glue = {"stepDefinitions"},
+        glue = {"stepDefinitions", "common"},
         plugin = {"pretty", "html:target/cucumber-report.html", "rerun:target/rerun.txt"},
         publish = true,
         monochrome = true
@@ -33,7 +34,15 @@ public class AppTest {
 
     @AfterClass()
     public static void afterAll() { // quit driver so that remote server would not error out
-//        final MobileDriver<MobileElement> driver = Common.CommonMediator.driver;
-//        driver.quit();
+        System.out.println("ending sessions ....");
+        if (CommonMediator.hostSession != null) {
+            CommonMediator.hostSession.stopDriver();
+            CommonMediator.hostSession.stopAppiumServer();
+        }
+
+        if (CommonMediator.guestSession != null) {
+            CommonMediator.guestSession.stopDriver();
+            CommonMediator.guestSession.stopAppiumServer();
+        }
     }
 }

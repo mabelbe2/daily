@@ -1,4 +1,4 @@
-package pages;
+package pages.host;
 
 import io.appium.java_client.MobileBy;
 import io.appium.java_client.MobileDriver;
@@ -6,11 +6,12 @@ import io.appium.java_client.MobileElement;
 import io.appium.java_client.pagefactory.AndroidBy;
 import io.appium.java_client.pagefactory.AndroidFindBy;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import pages.BasePage;
 
 import java.time.Duration;
 
 
-public class StartPage extends BasePage{
+public class StartPage extends BasePage {
     @AndroidFindBy(accessibility = "robots-room-url")
     MobileElement roomUrlField;
 
