@@ -1,11 +1,16 @@
 # Project Summary
-This project is to test the video call connection started between two dailyDemo Android apps.  
-The logic used is that two Appium server each host a mobile driver, one as host, and one as guest.(Host is the first one opening the room, the guest is the second one, the naming is only for easy identification).  
-Using virtual audio devices like sunflower and Blackhole, mac's output points to host output audio, and mac's input points to guest input audio.  
-When both host and guest join the room, both drivers compare the current screenshot to previous successful video connection screenshot. Based on the similarity score produced by opencv, the drivers can tell when the connection started (both host and guest video are showed).  
+This project is to test the video call connection started between two dailyDemo Android apps. 
+## Appium
+It uses two Appium server, each host a mobile driver, one as host, and one as guest.(Host is the first one opening the room, the guest is the second one, the naming is only for easy identification).
+ 
+## Video
+When both host and guest join the room, both drivers compare the current screenshot to previous successful video connection screenshot. Based on the similarity score produced by opencv, the drivers can tell when the connection started (both host and guest video are showed).
+## Audio
+Audio uses virtual audio devices like sunflower and Blackhole, mac's output points to host output audio, and mac's input points to guest input audio.
 During the project run, a sound file is feed to the mac's/guest's input, once video is connected, we can check if the guest input sound is coming out of host's output by recording host's output channel. The recording is done by ffmpeg.
-A silent sound file is used to compared to the record host output. The comparison is by compare audio fingerprint. If two silent files are compared, a comparison score would be 100.  Audio fingerprint by Chromaprint and comparison by [JavaWuzzy](https://github.com/xdrop/fuzzywuzzy) (a port of the useful Python library [FuzzyWuzzy](https://github.com/seatgeek/fuzzywuzzy))
-As long as the score is less than 100 (both files are identical), it means host has sound output, thus audio connection has started.
+
+A silent sound file is used to compared to the record host output. The comparison is by compare audio fingerprint. If two silent files are compared, a comparison score would be 100. As long as the score is less than 100 (both files are identical), it means host has sound output, thus audio connection has started.
+Audio fingerprint by Chromaprint and comparison by [JavaWuzzy](https://github.com/xdrop/fuzzywuzzy) (a port of the useful Python library [FuzzyWuzzy](https://github.com/seatgeek/fuzzywuzzy))
 ## Out of  Scope
 For Audio, the project only test if host can receive guest input, but does not test the opposite way. In the current setup, it only works if mac's output and input are set to target channels. Since mac's output and input can only be set one at time, only one pair of input and output can be tested a time. To be able to test both way, might need a different setup or programmatically change mac input and output at real time if that's possible.
 
@@ -60,7 +65,7 @@ Open SDK Manager -> SDK platform tab, click "show Package Details" checkbox on b
 It require cmake to install, if you don't have cmake, run  
 `brew install cmake`  
 This will take a while to finish the installation  
-(I forgot if it is for opencv or ffmpeg, one of the long installation might end up in error, and the fix might be reinstall xcode command line)
+(I forgot if it is for opencv or ffmpeg, one of the long installation might end up in long error with many function body printed, and the fix might be reinstall xcode command line)
 
 To verify this is installed properly, run appium-doctor, it should say something like
 ```  
@@ -97,16 +102,20 @@ Note down the number of the channel you used for host output, in the last sectio
 ```  
 Then the hostOutputDeviceNum is 4, go to project's `config.properties` and change `hostOutputDeviceNum` value to be 4.
 
-## ## SoundBoard setup (passing sound to mic)
+## SoundBoard setup (passing sound to mic)
 Using the open source [UniversalSoundBoard project](https://github.com/sethmachine/universal-sound-board), its usage in this project is to feed a sound file to the virtual microphone.   
+
 Following the instruction [building instructions](https://github.com/sethmachine/universal-sound-board#Building) and [Running the server](https://github.com/sethmachine/universal-sound-board#running-the-server).   
 I believe this project does not need to setup sink and source together.  (Though I did follow all the steps, so if you run into a problem, maybe you also need to do [setting up a sink](https://github.com/sethmachine/universal-sound-board#setting-up-a-sink) and [wiring the sink to the source](https://github.com/sethmachine/universal-sound-board#wiring-the-sink-to-the-source) in the given order.
-Next follow [Setting up a source](https://github.com/sethmachine/universal-sound-board#setting-up-a-source).  For source, use the same channel setup for the guest input in "Virtual Audio devices setup" section in this README.md, in this example, BlackHole 2ch. Note the return audioMixerId, set this audioMixerId value in the project `config.properties`'s `guestMicInputSourceId` field.
+
+Next follow [Setting up a source](https://github.com/sethmachine/universal-sound-board#setting-up-a-source).  For source, use the same channel setup for the guest input in "Virtual Audio devices setup" section in this README.md, in this example, BlackHole 2ch. Note the returned audioMixerId, set this audioMixerId value in the project `config.properties`'s `guestMicInputSourceId` field.
+
 Test setup is success, open System Preferences ->sounds ->Input, make sure the source input channel is selected (Blackhole 2ch in this example), there should be fluctuation in input level while playing audio file by following  [Play an audio file through the microphone](https://github.com/sethmachine/universal-sound-board#play-an-audio-file-through-the-microphone)
 # Emulator Setup
 Both devices should be use API 31 (S, Android 12) as per the demo app requirement.
 ## Host Device
 Before setting up emulator, set the System Preferences -> sound -> set Both Sound Effects and Output to sunflower 2ch(should match channel for  `hostOutputDeviceNum`) , Input to blackhole 16ch (this is an unused channel, just to avoid two device using same channel). If you want to change these channel setup for the emulator, you need to shut down and change the channels and then cold reboot, as Android emulator only set the audio and camera setting at the beginning, any changes you need will require cold reboot.
+
 At Virtual Device Configuration, click Advanced Setting on the bottom left, and Camera setting: front camera -> emulated, back camera -> anything but emulated.
 Create or cold reboot if existing devices.
 ### UDID
@@ -114,8 +123,11 @@ get UDID for the device after booted by checking `adb devices`, UDID should look
 
 ## Guest Device
 Before setting up emulator, set the System Preferences -> sound -> set Both Sound Effects and Output to blackhole 64ch(unused channel), mic blackhole 2ch (should match the channel for `guestMicInputSourceId`)
+
 At Virtual Device Configuration, click Advanced Setting on the bottom left, and Camera setting: front camera -> emulated, back camera -> anything but emulated.
-Create or cold reboot if existing devices, when the device started, go to the sidebar menu, click the 3 dot to bring up the menu, go to microphone tab, turn on the toggle named "virtual microphone uses host audio input)
+
+Create or cold reboot if existing devices, when the device started, go to the sidebar menu, click the 3 dot to bring up the menu, go to microphone tab, turn on the toggle named "virtual microphone uses host audio input". (When you shut down the emulator and boot it again, you may need to turn on this toggle again)
+
 ### UDID
 Similar to Host Device, set guest's UDID in project's `config.properties`'s `guestDeviceUDID`
 
@@ -141,7 +153,7 @@ run  `appium-doctor --android` to check all the necessary dependencies has been 
 ## Running the project
 During test run, make sure the universal sound board server is running.
 ```
-git clone https://github.com/mabelbe2/daily.git`
+git clone https://github.com/mabelbe2/daily.git
 cd daily
 mvn test
 ```
@@ -155,14 +167,14 @@ Aside report, you can also check the logs file saved in the project after run, u
 
 ### Structures
 test description file: `src/test/features/test.feature`
-There are four test case, first one is only for recording success screenshot, second one is a positive test case where both side video are connected and host can hear guest, third one is negative test case where video are not connected if one of them does not click join button, the fourth one is a negative test case where host cannot hear guest when guest turn off audio
+There are four test cases, first one is only for recording success screenshot, second one is a positive test case where both side video are connected and host can hear guest, third one is negative test case where video are not connected if one of them does not click join button, the fourth one is a negative test case where host cannot hear guest when guest turn off audio
 
 appium server and driver building:`src/test/java/environment/AppiumSession.java`
 
 audios files: `src/test/audios`
-host.wav : recording host output
-noMusic.mp4: silent sound file for silence check
-mic_sample_sound.wav: sound file to play to guest input
+- host.wav : recording host output
+- noMusic.mp4: silent sound file for silence check
+- mic_sample_sound.wav: sound file to play to guest input
 
 all the sounds plugin usage: `src/test/java/plugins`
 
