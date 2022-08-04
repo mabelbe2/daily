@@ -8,17 +8,20 @@ import io.appium.java_client.imagecomparison.*;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.logging.LogEntry;
 import pages.JoinPage;
-import pages.host.StartPage;
+import plugins.AudioFingerprint;
+import plugins.FFmpeg;
+import plugins.SoundBoard;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
+import java.util.*;
+import java.util.logging.Level;
 
 public class CommonMediator {
     public static AppiumSession hostSession;
@@ -29,24 +32,32 @@ public class CommonMediator {
 
     public static MobileDriver<MobileElement>currentDriver;
     public static String currentRole;
-    public static String roomUrl = "https://mabelbe.daily.co/mabeltest1032";
+    public static String roomUrl;
 
-    public static byte[] actualScreenshot = null;
     public static File actualScreenshotFile;
+    public static Properties prop;
     static {
         try {
-            hostSession = new AppiumSession("host");
+            InputStream input = new FileInputStream("config.properties");
+            prop = new Properties();
+            // load a properties file
+            prop.load(input);
+            roomUrl = prop.getProperty("roomURL");
+
+            // setup host appium server and driver
+            hostSession = new AppiumSession("host", prop.getProperty("hostAppiumServerPort"), prop.getProperty("hostDeviceUDID"));
             hostSession.startAppiumServer();
             hostDriver = hostSession.startDriver();
 
-            guestSession = new AppiumSession("guest");
+            // setup guest appium server and driver
+            guestSession = new AppiumSession("guest", prop.getProperty("guestAppiumServerPort"), prop.getProperty("guestDeviceUDID"));
             guestSession.startAppiumServer();
             guestDriver = guestSession.startDriver();
 
-//            guestSession = null;
-//            guestDriver = null;
-
             setCurrentDriver("host");
+            // run the sound file to guest input channel before test beginning, sound file last 5 minutes, should cover the entire test run
+            playSoundToMic(prop.getProperty("guestMicInputSourceId"));
+
         } catch (Exception e) {
             System.out.print("Timeout exception" + e);
             if (hostSession != null && hostSession.service.isRunning()) {
@@ -86,35 +97,21 @@ public class CommonMediator {
             scenario.attach("guest_screenshot", "text/plain", "guest_screenshot_title");
             scenario.attach(guestScreenshot, "image/png", "guest_screenshot");
 
-            if (checkFileExists("viz.jpg")) {
-                scenario.attach("viz_screenshot(expected left, actual right)", "text/plain", "viz_screenshot_title");
-                scenario.attach(readFileToByteArray("viz.jpg"), "image/png", "viz_screenshot");
+            String hostComparisonFilePath = "src/test/screenshots/host_comparison.jpg";
+            if (checkFileExists(hostComparisonFilePath)) {
+                scenario.attach("host_comparison_screenshot(expected left, actual right)", "text/plain", "viz_screenshot_title");
+                scenario.attach(readFileToByteArray(hostComparisonFilePath), "image/png", "viz_screenshot");
             }
-//            FileUtils.writeByteArrayToFile(actualScreenshotFile, actualScreenshot);
-//            scenario.attach(actualScreenshot, "image/png", "screenshot");
 
-//            byte[] expectedScreenshot = CommonMediator.readExpectedScreenShotFileToByteArray();
-//            scenario.attach(expectedScreenshot, "image/png", "screenshot");
-
-            String pageSource = currentDriver.getPageSource();
-
-            scenario.attach(pageSource, "text/plain", "pageSource");
-
-
-        } else {
-//            File scrFile = ((TakesScreenshot)hostDriver).getScreenshotAs(OutputType.FILE);
-//            FileUtils.copyFile(scrFile, new File("screenshot_host.jpg"));
-//
-//            scrFile = ((TakesScreenshot)guestDriver).getScreenshotAs(OutputType.FILE);
-//            FileUtils.copyFile(scrFile, new File("screenshot_guest.jpg"));
-
-//            File hostExpectedScreenshotFile = new File("screenshot_host.jpg");
-//            byte[] hostExpectedScreenshot = Files.readAllBytes(hostExpectedScreenshotFile.toPath());
-//            compareScreenshot(hostDriver, hostExpectedScreenshot);
-//
-//            File guestExpectedScreenshotFile = new File("screenshot_guest.jpg");
-//            byte[] guestExpectedScreenshot = Files.readAllBytes(guestExpectedScreenshotFile.toPath());
-//            compareScreenshot(guestDriver, guestExpectedScreenshot);
+            String guestComparisonFilePath = "src/test/screenshots/guest_comparison.jpg";
+            if (checkFileExists("src/test/screenshots/guest_comparison.jpg")) {
+                scenario.attach("guest_comparison_screenshot(expected left, actual right)", "text/plain", "viz_screenshot_title");
+                scenario.attach(readFileToByteArray(guestComparisonFilePath), "image/png", "viz_screenshot");
+            }
+            CommonMediator.setCurrentDriver("host");
+            joinPage().leaveCallRoomIfStillInside();
+            CommonMediator.setCurrentDriver("guest");
+            joinPage().leaveCallRoomIfStillInside();
         }
         hostDriver.closeApp();
         guestDriver.closeApp();
@@ -125,12 +122,12 @@ public class CommonMediator {
         return Files.readAllBytes(fileToRead.toPath());
     }
 
+        // use opencv to compare two images for similarity score (0 - 1)
     public static SimilarityMatchingResult compareImageBySimilarity() throws IOException {
-        File ExpectedHostImageFile = new File("screenshot_"+currentRole+".jpg");
+        File ExpectedHostImageFile = new File("src/test/screenshots/expected_screenshot_"+currentRole+".jpg");
 
         actualScreenshotFile = ((TakesScreenshot)currentDriver).getScreenshotAs(OutputType.FILE);
-//        byte[] screenshot1 = Base64.encodeBase64(actualScreenshot);
-        byte[] ExpectedHostImage = Files.readAllBytes(ExpectedHostImageFile.toPath());
+
         SimilarityMatchingResult result = ((ComparesImages) currentDriver)
                 .getImagesSimilarity(actualScreenshotFile, ExpectedHostImageFile, new SimilarityMatchingOptions()
                         .withEnabledVisualization());
@@ -140,6 +137,7 @@ public class CommonMediator {
         return result;
     }
 
+    // wait until the current screen is very similar to previous success connection screenshot, then assume connection is success
     public static void waitUntilVideoConnected(Double minThreshold, long timeout) throws InterruptedException, IOException {
         SimilarityMatchingResult result;
         long startTime = System.currentTimeMillis();
@@ -147,40 +145,99 @@ public class CommonMediator {
             result = compareImageBySimilarity();
         } while(result.getScore() < minThreshold && (System.currentTimeMillis()-startTime<timeout));
 
-        File viz = new File("viz.jpg");
+        File viz = new File("src/test/screenshots/"+currentRole+"_comparison.jpg");
         result.storeVisualization(viz);
-
-//        File scrFile = ((TakesScreenshot)currentDriver).getScreenshotAs(OutputType.FILE);
-//        FileUtils.copyFile(scrFile, new File("screenshot_" + currentRole +".jpg"));
 
         Assert.assertTrue("actual score is " + result.getScore() + ", but expected minimum score is " + minThreshold, result.getScore() >= minThreshold);
     }
 
-    public static void compareTwoImage(byte[] image, byte[] imageToCompare) {
-//        byte[] screenshot = Base64.encodeBase64(((TakesScreenshot)currentDriver).getScreenshotAs(OutputType.BYTES));
-        FeaturesMatchingResult result = ((ComparesImages) currentDriver)
-                .matchImagesFeatures(image, imageToCompare, new FeaturesMatchingOptions()
-                        .withDetectorName(FeatureDetector.ORB)
-                        .withGoodMatchesFactor(40)
-                        .withMatchFunc(MatchingFunction.BRUTE_FORCE_HAMMING)
-                        .withEnabledVisualization());
-        Assert.assertTrue(result.getVisualization().length > 0);
-        Assert.assertTrue(result.getCount() > 0);
-        Assert.assertTrue(result.getTotalCount() > 0);
-        Assert.assertFalse(result.getPoints1().isEmpty());
-        Assert.assertNotNull(result.getRect1());
-        Assert.assertFalse(result.getPoints2().isEmpty());
-        Assert.assertNotNull(result.getRect2());
+    public static void takeSampleScreenshot() throws IOException {
+        File scrFile = ((TakesScreenshot)currentDriver).getScreenshotAs(OutputType.FILE);
+        FileUtils.copyFile(scrFile, new File("src/test/screenshots/expected_screenshot_" + currentRole +".jpg"));
     }
 
+    // use sound board to play sound to mic/input channel
+    public static void playSoundToMic(String guestMicInputSourceId) throws InterruptedException {
+        SoundBoard soundToMic = new SoundBoard(guestMicInputSourceId);
+        Thread t = new Thread(soundToMic);
+        t.start();
+
+        // wait for SoundBoard thread to end on its own
+        t.join();
+    }
+
+    // use ffmpeg to record specific channel
+    public static void captureForDuration(File audioCapture, int durationMs) throws Exception {
+
+        FFmpeg capture = new FFmpeg(audioCapture, Integer.parseInt(prop.getProperty(currentRole + "OutputDeviceNum")));
+        Thread t = new Thread(capture);
+        t.start();
+
+        // wait for sufficient amount of song to play
+        Thread.sleep(durationMs);
+
+        // tell ffmpeg to stop sampling
+        capture.stopCollection();
+
+        // wait for ffmpeg thread to end on its own
+        t.join();
+    }
+
+    public static File captureAudio(int timeoutMs, boolean isSample) throws Exception {
+        File audioCapture;
+
+        String filePath = "src/test/audios/"+currentRole + (".wav");
+        if (checkFileExists(filePath)) {
+            audioCapture = new File( filePath);
+            audioCapture.delete();
+        }
+        audioCapture = new File(filePath);
+
+        CommonMediator.captureForDuration(audioCapture, timeoutMs);
+        return audioCapture;
+    }
+
+    // check the output is silent
+    public static void assertAudioOutputSilence(Boolean isSilentCheck, int timeoutMs) throws Exception {
+        // now we calculate the fingerprint of the freshly-captured audio...
+        AudioFingerprint fp1 = AudioFingerprint.calcFP(captureAudio(timeoutMs, false));
+
+        // as well as the fingerprint of our baseline audio...
+        AudioFingerprint fp2 = AudioFingerprint.calcFP(new File("src/test/audios/noMusic.mp4"));
+        // and compare the two
+        double comparison = fp1.compare(fp2);
+        System.out.println("comparison "+ comparison);
+        // finally, we assert that the comparison is sufficiently strong
+
+        Assert.assertTrue("actual comparison score is " + comparison + ", but silenceCheck is " + isSilentCheck, isSilentCheck ? comparison == 100 : comparison != 100);
+
+    }
+    public static List<LogEntry> orderLogEntries(List<LogEntry> oldEntries) {
+        List<LogEntry> newEntries = new ArrayList<>();
+        LogEntry tempEntry;
+        for (LogEntry entry : oldEntries) {
+            tempEntry = new LogEntry(entry.getLevel(), entry.getTimestamp(), entry.getMessage() + "\n");
+            newEntries.add(tempEntry);
+        }
+        return newEntries;
+    }
+
+    public static void captureLog(String role)
+            throws Exception {
+        setCurrentDriver(role);
+        System.out.println(role + ": Saving device log...");
+        List<LogEntry> logEntries = currentDriver.manage().logs().get("logcat").filter(Level.ALL);
+        logEntries = orderLogEntries(logEntries);
+        File logFile = new File("src/test/logs/"+role +  "_logcat.txt");
+        PrintWriter log_file_writer = new PrintWriter(logFile);
+        log_file_writer.println(logEntries);
+        log_file_writer.flush();
+        System.out.println(role + ": Saving device log - Done.");
+    }
 
     public static boolean checkFileExists(String filePath) {
         File f = new File(filePath);
         return f.exists() && !f.isDirectory();
-    }
-
-    public static StartPage startPage() {
-        return new StartPage(currentDriver);
     }
 
     public static JoinPage joinPage() {

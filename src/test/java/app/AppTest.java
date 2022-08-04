@@ -33,14 +33,16 @@ public class AppTest {
     }
 
     @AfterClass()
-    public static void afterAll() { // quit driver so that remote server would not error out
+    public static void afterAll() throws Exception { // quit driver so that remote server would not error out
         System.out.println("ending sessions ....");
         if (CommonMediator.hostSession != null) {
+            CommonMediator.captureLog("host");
             CommonMediator.hostSession.stopDriver();
             CommonMediator.hostSession.stopAppiumServer();
         }
 
         if (CommonMediator.guestSession != null) {
+            CommonMediator.captureLog("guest");
             CommonMediator.guestSession.stopDriver();
             CommonMediator.guestSession.stopAppiumServer();
         }

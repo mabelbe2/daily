@@ -18,19 +18,12 @@ public class test {
         CommonMediator.setCurrentDriver("host");
         CommonMediator.joinPage().waitUntilPageLoaded();
 
-//        CommonMediator.compareIdenticalScreenshot();
     }
 
     @And("{word} clicks {string}")
     public void clicks(String role, String btnName) {
         CommonMediator.setCurrentDriver(role);
-//        CommonMediator.currentDriver = CommonMediator.hostDriver;
-//        if (btnName.equals("create demo room")) {
-//            CommonMediator.roomUrl = CommonMediator.startPage().createDemoRoomUrl();
-//            System.out.println(CommonMediator.roomUrl);
-//        } else {
-            CommonMediator.joinPage().clickJoinCall();
-//        }
+        CommonMediator.joinPage().clickJoinCall();
 
     }
 
@@ -46,30 +39,51 @@ public class test {
         CommonMediator.joinPage().pasteInRoomUrl(CommonMediator.roomUrl);
     }
 
-//    @And("guest clicks {string}")
-//    public void guestClicks(String btnName) {
-//        if(btnName.equals("join")) {
-//            CommonMediator.joinPage().clickJoinCall();
-//        }
-//    }
-
     @And("guest wait until host camera on")
     public void guestWaitUntilHostCameraOn() throws InterruptedException, IOException {
         CommonMediator.setCurrentDriver("guest");
         CommonMediator.joinPage().waitUntilHostVideoLoaded();
-
-//        Thread.sleep(5000);
-//        File scrFile = ((TakesScreenshot)CommonMediator.currentDriver).getScreenshotAs(OutputType.FILE);
-//        FileUtils.copyFile(scrFile, new File("screenshot_" + CommonMediator.currentRole +".jpg"));
     }
 
 
-    @And("verify {word} side video call started when reached minimum similarity threshold {string} within {string} ms")
+    @And("verify {word} side video call started when reached minimum similarity threshold {string} within {string} seconds")
     public void verifyVideoCallStartedBySimilarityThresholdWithinSeconds(String role, String minThresholdStr, String timeoutStr) throws IOException, InterruptedException {
         CommonMediator.setCurrentDriver(role);
         Double minThreshold = Double.parseDouble(minThresholdStr);
-        long timeout = Long.parseLong(timeoutStr);
+        long timeout = Long.parseLong(timeoutStr)*1000;
         CommonMediator.waitUntilVideoConnected(minThreshold, timeout);
     }
 
+    @And("verify {word} should be able to hear {word} audio input within {string} seconds")
+    public void verifyHostSideAudioSimilarityWithSampleHasMinimumScoreWithinMs(String role, String unusedRole, String audioTimeoutStr) throws Exception {
+        CommonMediator.setCurrentDriver(role);
+        CommonMediator.assertAudioOutputSilence(false, Integer.parseInt(audioTimeoutStr)*1000);
+
+    }
+
+    @And("screenshot {word} after {int} second wait")
+    public void screenshotHostAfterSecondWait(String role, int seconds) throws IOException, InterruptedException {
+        Thread.sleep(seconds*1000);
+        CommonMediator.setCurrentDriver(role);
+        CommonMediator.takeSampleScreenshot();
+    }
+
+    @And("record {word} sample for {int} seconds")
+    public void recordHostForSeconds(String role, int sec) throws Exception {
+        CommonMediator.setCurrentDriver(role);
+        CommonMediator.captureAudio(sec*1000, true);
+    }
+
+    @And("{word} mutes own mic")
+    public void hostMutesOwnMicAndGuestShouldNotBeAbleToHearAnyAudio(String firstRole) throws Exception {
+        CommonMediator.setCurrentDriver(firstRole);
+        CommonMediator.joinPage().muteSelf();
+        Thread.sleep(2000); // 2 sec wait for host to stop hearing guest audio
+    }
+
+    @And("{word} leaves video call room")
+    public void hostLeavesVideoCallRoom(String firstRole) {
+        CommonMediator.setCurrentDriver(firstRole);
+        CommonMediator.joinPage().leaveCallRoom();
+    }
 }
