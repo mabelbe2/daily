@@ -1,5 +1,5 @@
 # Project Summary
-This project is to test the video call connection started between two dailyDemo Android apps. 
+This project is to test the video call connection started between two [dailyDemo](https://github.com/daily-demos/daily-android-demo) Android apps. 
 ## Appium
 It uses two Appium server, each host a mobile driver, one as host, and one as guest.(Host is the first one opening the room, the guest is the second one, the naming is only for easy identification).
  
