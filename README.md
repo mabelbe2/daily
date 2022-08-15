@@ -1,7 +1,7 @@
 # Project Summary
 This project is to test the video call connection started between two [dailyDemo](https://github.com/daily-demos/daily-android-demo) Android apps. 
 ## Appium
-It uses two Appium server, each host a mobile driver, one as host, and one as guest.(Host is the first one opening the room, the guest is the second one, the naming is only for easy identification).
+It uses two Appium servers, each host a mobile driver, one as host, and one as guest.(Host is the first one opening the room, the guest is the second one, the naming is only for easy identification).
  
 ## Video
 When both host and guest join the room, both drivers compare the current screenshot to previous successful video connection screenshot. Based on the similarity score produced by opencv, the drivers can tell when the connection started (both host and guest video are showed).
@@ -21,15 +21,20 @@ Java maven project using cucumber, JUnit and appium. All dependencies are under 
 Running two Android 12 android emulators on mac Catalina.
 # Project setup
 ## Java
-Install openJDK 11 (for the project itself and SoundBoard)  
+Install openJDK 11 (for the project itself and SoundBoard) 
 https://docs.microsoft.com/en-us/java/openjdk/older-releases#openjdk-11  
+Get the pkg version. (it will install at the default Jdk location)
 after installation, add `JAVA_HOME` environment variable to your shell startup script ~/.bashrc or ~/.zshrc depending on your shell
 ## Maven
 Install the latest Maven  
 https://maven.apache.org/download.cgi  
 after installation, add `M2_HOME`environment variable to your shell startup script
 ## Node
-Install node version 14+ (I am using v14.16.0)
+Install node version 14 (I am using v14.16.0, and using version 16 might cause some npm install issues). Please use [nvm](https://github.com/nvm-sh/nvm) to install node, so that the paths would match the ones in this README.md.
+```
+nvm install v14.16.0
+nvm use v14.16.0
+```
 ## Appium
 `npm install -g appium`
 ### Appium-doctor
@@ -37,6 +42,15 @@ This is helpful to check appium related installation
 `npm install -g appium-doctor`
 ### Appium Server
 To build appium server programmatically, you need `APPIUM_PATH` and `NODE_PATH` in the shell startup script
+
+To get APPIUM_PATH location, run
+`which appium`
+the location would be probably something like `/Users/mabelbe/.nvm/versions/node/v14.16.0/bin/appium`, if you see `/usr/local/bin/appium` instead, you need to manually remove `rm -rf /usr/local/bin/appium`, and then run `npm install -g appium`. Save this location to be `APPIUM_PATH` in startup script.
+Appium and opencv4nodejs location will need to be at the same path under `/Users/mabelbe/.nvm/versions/node/v14.16.0/bin/` in order to have opencv running in the test.
+
+To get NODE_PATH, run
+`npm root -g`
+it should return something like `/Users/mabelbe/.nvm/versions/node/v14.16.0/lib/node_modules`, set it as `NODE_PATH` in the startup script
 #### ports
 By default, the two appium server will run on port 23861 (host) and 20452 (guest). If you want to use different ports, you can change project's `config.properties`'s `hostAppiumServerPort` and `guestAppiumServerPort`
 
@@ -48,24 +62,37 @@ kill <PID return from last command>
 ## IDE
 Intellij https://www.jetbrains.com/idea/
 ### Preference
-If you have more than one version of JDK, make sure JDK 11 is selected in  
-Preferences | Build, Execution, Deployment | Build Tools | Maven | Runner For JRE field  
-and  
+If you have more than one version of JDK, make sure JDK 11 is selected in
 File -> Project Structure -> SDK
+and
+Preferences | Build, Execution, Deployment | Build Tools | Maven | Runner | JRE field  (need to select in this order, version 11 need to be selected in Project Structure SDK then it become a option in Runner JRE field)
 ### Plugins
 `Cucumber for Java` and `Gherkin` are helpful for cucumber syntax highlight
+## Reinstall Xcode command line
+Reinstall Xcode CLI as it might cause some issues in one of the following installation steps.
+Run
+```
+sudo rm -r -f /Library/Developer/CommandLineTools
+```
+A popup might show asking git needs xcode, click "install" on this popup. If no popup showed, run
+```
+xcode-select --install
+```
 ## Android Studio
-Install Android Studio.
+Install Android Studio or upgrade to latest version.
 ### SDK Manager
-Open SDK Manager -> SDK platform tab, click "show Package Details" checkbox on bottom right, under Android 12.0(S) select "Android SDK Platform 31" (first one), sources for Android 31(second one), Intel x86 Atom_64 System Image(5th one), and then click "SDK tools" tab, select "31.0.0", click "ok" to install if any of these are not yet installed.
+Open SDK Manager -> SDK platform tab, check "show Package Details" checkbox on bottom right, under Android 12.0(S) select "Android SDK Platform 31" (first one usually), "sources for Android 31"(second one usually), "Intel x86 Atom_64 System Image" 
+and then open click "SDK tools" tab, check "show Package Details" checkbox on bottom right, select "31.0.0"
+click "ok" to install if any of these are not yet installed.
 
 # Video testing setup
 ## opencv
-`npm i -g opencv4nodejs`  
-It require cmake to install, if you don't have cmake, run  
-`brew install cmake`  
+```
+brew install cmake
+unset OPENCV4NODEJS_DISABLE_AUTOBUILD
+npm i -g opencv4nodejs
+```
 This will take a while to finish the installation  
-(I forgot if it is for opencv or ffmpeg, one of the long installation might end up in long error with many function body printed, and the fix might be reinstall xcode command line)
 
 To verify this is installed properly, run appium-doctor, it should say something like
 ```  
@@ -82,7 +109,7 @@ info AppiumDoctor The configuration can install optionally. Please do the follow
 # Audio testing setup
 Most of the setup are based on the tutorial https://www.headspin.io/blog/capturing-audio-output-during-testing-part-1 and https://www.headspin.io/blog/capturing-audio-output-during-testing-part-2, which covered Audio capture with appium.
 ## Virtual Audio devices setup
-Install [Sunflower](https://github.com/mattingalls/Soundflower) and [Blackhole](https://github.com/ExistentialAudio/BlackHole)  
+Install [Sunflower](https://github.com/mattingalls/Soundflower/releases) and [Blackhole](https://github.com/ExistentialAudio/BlackHole)  
 You might need to restart.  
 Go to System Preferences, and you should see the devices under the "Output" and "Input" tabs. Sound Effects and Output should use the same channel. On Sound Effects, choose Sunflower(2ch) under play sound effects through dropdown, and on Output tab, choose Sunflower(2ch) also. On Input tab, choose BlackHole 2ch.
 
@@ -106,7 +133,7 @@ Then the hostOutputDeviceNum is 4, go to project's `config.properties` and chang
 Using the open source [UniversalSoundBoard project](https://github.com/sethmachine/universal-sound-board), its usage in this project is to feed a sound file to the virtual microphone.   
 
 Following the instruction [building instructions](https://github.com/sethmachine/universal-sound-board#Building) and [Running the server](https://github.com/sethmachine/universal-sound-board#running-the-server).   
-I believe this project does not need to setup sink and source together.  (Though I did follow all the steps, so if you run into a problem, maybe you also need to do [setting up a sink](https://github.com/sethmachine/universal-sound-board#setting-up-a-sink) and [wiring the sink to the source](https://github.com/sethmachine/universal-sound-board#wiring-the-sink-to-the-source) in the given order.
+I believe this project does not need to setup sink and source together.  (Though I did follow all the steps, so if you run into a problem, maybe you also need to do [setting up a sink](https://github.com/sethmachine/universal-sound-board#setting-up-a-sink) and [wiring the sink to the source](https://github.com/sethmachine/universal-sound-board#wiring-the-sink-to-the-source) in the given order.)
 
 Next follow [Setting up a source](https://github.com/sethmachine/universal-sound-board#setting-up-a-source).  For source, use the same channel setup for the guest input in "Virtual Audio devices setup" section in this README.md, in this example, BlackHole 2ch. Note the returned audioMixerId, set this audioMixerId value in the project `config.properties`'s `guestMicInputSourceId` field.
 
@@ -116,15 +143,15 @@ Both devices should be use API 31 (S, Android 12) as per the demo app requiremen
 ## Host Device
 Before setting up emulator, set the System Preferences -> sound -> set Both Sound Effects and Output to sunflower 2ch(should match channel for  `hostOutputDeviceNum`) , Input to blackhole 16ch (this is an unused channel, just to avoid two device using same channel). If you want to change these channel setup for the emulator, you need to shut down and change the channels and then cold reboot, as Android emulator only set the audio and camera setting at the beginning, any changes you need will require cold reboot.
 
-At Virtual Device Configuration, click Advanced Setting on the bottom left, and Camera setting: front camera -> emulated, back camera -> anything but emulated.
-Create or cold reboot if existing devices.
+At Virtual Device Configuration, Select hardware -> Pixel 5, System image -> S API 31, click Advanced Setting on the bottom left, and Camera setting: front camera -> emulated, back camera -> anything but emulated.
+Create or cold reboot if existing devices. Start the device.
 ### UDID
 get UDID for the device after booted by checking `adb devices`, UDID should looks like "emulator-xxxx", xxxx part should match the port number on the top bar on the emulator. Note this UDID, and set it in project's `config.properties`'s `hostDeviceUDID`
 
 ## Guest Device
 Before setting up emulator, set the System Preferences -> sound -> set Both Sound Effects and Output to blackhole 64ch(unused channel), mic blackhole 2ch (should match the channel for `guestMicInputSourceId`)
 
-At Virtual Device Configuration, click Advanced Setting on the bottom left, and Camera setting: front camera -> emulated, back camera -> anything but emulated.
+At Virtual Device Configuration, Select hardware -> Pixel 4 XL, System image -> S API 31, click Advanced Setting on the bottom left, and Camera setting: front camera -> emulated, back camera -> anything but emulated.
 
 Create or cold reboot if existing devices, when the device started, go to the sidebar menu, click the 3 dot to bring up the menu, go to microphone tab, turn on the toggle named "virtual microphone uses host audio input". (When you shut down the emulator and boot it again, you may need to turn on this toggle again)
 
@@ -152,11 +179,21 @@ run  `appium-doctor --android` to check all the necessary dependencies has been 
 
 ## Running the project
 During test run, make sure the universal sound board server is running.
+In Command line, run
 ```
 git clone https://github.com/mabelbe2/daily.git
-cd daily
+```
+Open the project in Intellij IDE and wait for the project being imported and indexed. (you can see the progress at the bottom status bar)
+
+Open the Intellij terminal (it should be one of the tab right above the bottom status bar)
+```
 mvn test
 ```
+## Troubleshooting
+Sometimes you might see this error:
+`unknown server-side error occurred while processing the command. Original error: Could not proxy command to the remote server. Original error: socket hang up`
+Try shut down the emulator and restart to see if it fix the issue. It might take more than one try.
+
 While running, keep both emulators on the front end, I find sometimes when they are running in the background, I would get errors like "Sytem UI is not responding" and stop the test from running
 
 ### Report
